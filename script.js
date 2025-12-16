@@ -8,11 +8,11 @@ let particles = [];
 let mode = 'WANDER'; // 'WANDER', 'HEART'
 
 // Reduced count for Line performance and cleaner look
-const PARTICLE_COUNT = 900;
-const HEART_COUNT = 600;
+const PARTICLE_COUNT = 100;
+const HEART_COUNT = 100; // Use all particles for heart
 
 const MOUSE_RADIUS = 100;
-const CONNECTION_DIST = 100; // Max distance for lines
+const CONNECTION_DIST = 150; // Increased distance so lines still appear with fewer dots
 
 // Physics constants (Even Slower)
 const SPRING_STIFFNESS = 0.015; // Very soft spring
@@ -259,26 +259,17 @@ function animate() {
     });
 
     // Draw Lines
-    // Optimization: Only check connection if particles are close.
-    // O(N^2) is expensive. With 900 particles -> 810,000 checks.
-    // Try to limit logic: only draw lines between particles of same type?
-    // User wants "aralarında noktalar arasında line".
-    // We'll do a simple nested loop but with Distance check optimization.
+    // Low particle count (100) makes this very fast.
 
     ctx.strokeStyle = 'rgba(186, 85, 211, 0.15)'; // Very faint purple
     ctx.lineWidth = 0.5;
 
     for (let i = 0; i < particles.length; i++) {
-        // Simple optimization: Skip some particles to reduce load for lines?
-        // Or just limit loop range. 
-        // Let's try full loop first, 900 might be okay on modern devices. 
-        // If slow, we can step +2.
-
         for (let j = i + 1; j < particles.length; j++) {
             const p1 = particles[i];
             const p2 = particles[j];
 
-            // Manhattan distance pre-check for speed (avoid sqrt)
+            // Manhattan distance pre-check
             if (Math.abs(p1.x - p2.x) > CONNECTION_DIST || Math.abs(p1.y - p2.y) > CONNECTION_DIST) continue;
 
             const dx = p1.x - p2.x;
