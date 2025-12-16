@@ -8,11 +8,11 @@ let particles = [];
 let mode = 'WANDER'; // 'WANDER', 'HEART'
 
 // Reduced count for Line performance and cleaner look
-const PARTICLE_COUNT = 100;
-const HEART_COUNT = 100; // Use all particles for heart
+const PARTICLE_COUNT = 2000;
+const HEART_COUNT = 1200;
 
 const MOUSE_RADIUS = 100;
-const CONNECTION_DIST = 150; // Increased distance so lines still appear with fewer dots
+const CONNECTION_DIST = 100; // Max distance for lines
 
 // Physics constants (Even Slower)
 const SPRING_STIFFNESS = 0.015; // Very soft spring
@@ -26,16 +26,16 @@ let scatterPulse = 0;
 let isScrambling = false;
 let scrambleTimer = null;
 
-// Colors
-const colors = [
-    '#8A2BE2', // BlueViolet
-    '#9400D3', // DarkViolet
-    '#9932CC', // DarkOrchid
-    '#BA55D3', // MediumOrchid
-    '#DA70D6', // Orchid
-    '#D8BFD8', // Thistle
-    '#E6E6FA'  // Lavender
-];
+// Colors (No longer used directly for particles, but keeping for reference if needed)
+// const colors = [
+//     '#8A2BE2', // BlueViolet
+//     '#9400D3', // DarkViolet
+//     '#9932CC', // DarkOrchid
+//     '#BA55D3', // MediumOrchid
+//     '#DA70D6', // Orchid
+//     '#D8BFD8', // Thistle
+//     '#E6E6FA'  // Lavender
+// ];
 
 // Resize handler
 function resize() {
@@ -100,11 +100,15 @@ class Particle {
         this.reset();
         this.x = Math.random() * width;
         this.y = Math.random() * height;
+        // Random start hue (Purple range: 260 - 320)
+        this.hue = 260 + Math.random() * 60;
+        // Random hue speed (Slower fade)
+        this.hueSpeed = 0.1 + Math.random() * 0.1;
+        this.hueDir = Math.random() > 0.5 ? 1 : -1;
     }
 
     reset() {
         this.radius = Math.random() * 2 + 1;
-        this.color = colors[Math.floor(Math.random() * colors.length)];
 
         // Wandering velocity (Very Slow)
         this.vx = (Math.random() - 0.5) * WANDER_SPEED;
@@ -115,6 +119,12 @@ class Particle {
     }
 
     update() {
+        // Color Fading
+        this.hue += this.hueSpeed * this.hueDir;
+        if (this.hue > 320 || this.hue < 260) {
+            this.hueDir *= -1; // Bounce hue
+        }
+
         // Pulse decay
         if (scatterPulse > 0) {
             scatterPulse *= 0.92;
@@ -175,18 +185,31 @@ class Particle {
                 const cy = height / 2;
 
                 // Approximate heart radius ~ height/3
-                const heartExclusionRadius = Math.min(width, height) * 0.35;
+                // Using 0.35 * min_dim as boundary (Heart is approx 0.35 with new scale)
+                const heartExclusionRadius = Math.min(width, height) * 0.38;
 
                 const cdx = this.x - cx;
                 const cdy = this.y - cy;
                 const cDist = Math.sqrt(cdx * cdx + cdy * cdy);
 
                 if (cDist < heartExclusionRadius) {
-                    const pushFactor = (heartExclusionRadius - cDist) / heartExclusionRadius;
+                    // Hard Barrier: Project to edge
                     const angle = Math.atan2(cdy, cdx);
-                    // Push out gently
-                    this.vx += Math.cos(angle) * pushFactor * 0.2;
-                    this.vy += Math.sin(angle) * pushFactor * 0.2;
+                    this.x = cx + Math.cos(angle) * heartExclusionRadius;
+                    this.y = cy + Math.sin(angle) * heartExclusionRadius;
+
+                    // Reflect velocity to point outward
+                    // Simple logic: if moving in, reverse.
+                    // Dot product of Velocity and Normal (normal is cos(angle), sin(angle))
+                    const nx = Math.cos(angle);
+                    const ny = Math.sin(angle);
+                    const dot = this.vx * nx + this.vy * ny;
+
+                    if (dot < 0) {
+                        // Moving inwards, reflect
+                        this.vx = this.vx - 2 * dot * nx;
+                        this.vy = this.vy - 2 * dot * ny;
+                    }
                 }
             }
 
@@ -211,7 +234,7 @@ class Particle {
     draw() {
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-        ctx.fillStyle = this.color;
+        ctx.fillStyle = `hsl(${this.hue}, 70%, 60%)`;
         ctx.fill();
         ctx.closePath();
     }
@@ -220,7 +243,8 @@ class Particle {
 function calculateTargets() {
     const cx = width / 2;
     const cy = height / 2;
-    const scale = Math.min(width, height) / 35;
+    // Shrink heart slightly to make room for background particles
+    const scale = Math.min(width, height) / 45;
 
     // Reset targets
     particles.forEach(p => {
@@ -259,17 +283,27 @@ function animate() {
     });
 
     // Draw Lines
-    // Low particle count (100) makes this very fast.
+    // OPTIMIZATION:
+    // Only draw lines between BACKGROUND particles.
+    // Heart particles (0 to HEART_COUNT-1) should NOT have lines.
+    // Background particles are (HEART_COUNT to PARTICLE_COUNT-1).
+    // We limit to a subset of BG particles for performance (e.g. first 300 BG particles).
 
     ctx.strokeStyle = 'rgba(186, 85, 211, 0.15)'; // Very faint purple
     ctx.lineWidth = 0.5;
 
-    for (let i = 0; i < particles.length; i++) {
-        for (let j = i + 1; j < particles.length; j++) {
+    // Start from HEART_COUNT to pick only background particles
+    const bgStartIndex = HEART_COUNT;
+    const lineChecks = 300; // Check connections for this many background particles
+    const loopEnd = Math.min(particles.length, bgStartIndex + lineChecks);
+
+    for (let i = bgStartIndex; i < loopEnd; i++) {
+        // Look ahead in the same group
+        for (let j = i + 1; j < loopEnd; j++) {
             const p1 = particles[i];
             const p2 = particles[j];
 
-            // Manhattan distance pre-check
+            // Manhattan distance pre-check for speed (avoid sqrt)
             if (Math.abs(p1.x - p2.x) > CONNECTION_DIST || Math.abs(p1.y - p2.y) > CONNECTION_DIST) continue;
 
             const dx = p1.x - p2.x;
