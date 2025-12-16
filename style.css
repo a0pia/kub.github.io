@@ -1,0 +1,93 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    user-select: none;
+}
+
+body {
+    overflow: hidden;
+    background-color: #000000;
+    font-family: 'Outfit', sans-serif;
+    color: white;
+}
+
+#canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+}
+
+#transformBtn {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 10;
+    padding: 15px 40px;
+    font-size: 1.2rem;
+    font-weight: 500;
+    color: white;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 30px;
+    backdrop-filter: blur(10px);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    letter-spacing: 1px;
+}
+
+#transformBtn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    box-shadow: 0 0 20px rgba(186, 85, 211, 0.4);
+    border-color: rgba(186, 85, 211, 0.5);
+    transform: translate(-50%, -50%) scale(1.05);
+}
+
+#transformBtn.hidden {
+    opacity: 0;
+    pointer-events: none;
+    transform: translate(-50%, -50%) scale(0.9);
+}
+
+#message {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 5;
+    /* Behind button if visible, but button disappears */
+    text-align: center;
+    font-size: 2rem;
+    font-weight: 300;
+    color: #fff;
+    text-shadow: 0 0 10px rgba(186, 85, 211, 0.8), 0 0 20px rgba(186, 85, 211, 0.4);
+    opacity: 0;
+    transition: opacity 1.5s ease 0.5s;
+    /* Delay to let heart form */
+    pointer-events: none;
+    width: 80%;
+    max-width: 600px;
+}
+
+#message.visible {
+    opacity: 1;
+}
+
+@media (max-width: 768px) {
+    #transformBtn {
+        padding: 12px 30px;
+        font-size: 1rem;
+        width: 80%;
+        max-width: 300px;
+        text-align: center;
+    }
+
+    #message {
+        font-size: 1.5rem;
+        width: 90%;
+    }
+}
